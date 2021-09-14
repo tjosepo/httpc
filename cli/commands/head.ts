@@ -4,6 +4,7 @@ import { headUsage } from "./help.ts";
 export async function headCommand(parameters: string[]) {
   let headers: Record<string, string> = {};
   let url: string | undefined = undefined;
+  let filename: string | undefined = undefined;
 
   for (let i = 0; i < parameters.length; i++) {
     const parameter = parameters[i];
@@ -15,6 +16,9 @@ export async function headCommand(parameters: string[]) {
         headers = { ...headers, ...header };
         break;
       }
+      case "-o":
+        filename = parameters[++i];
+        break;
       default:
         url = parameter;
     }
@@ -26,5 +30,11 @@ export async function headCommand(parameters: string[]) {
   }
 
   const response = await HttpClient.head(url, { headers });
-  console.log(response.raw);
+  const output = response.raw;
+  if (filename) {
+    Deno.writeTextFile(filename, output);
+    return;
+  }
+
+  console.log(output);
 }

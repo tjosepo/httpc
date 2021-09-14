@@ -85,10 +85,23 @@ function parseResponse<T>(response: string): HttpClientResponse<T> {
 }
 
 async function fetch<T>(config: Config) {
-  const request = buildRequest(config);
-  const conn = await sendRequest(config.url, request);
-  const raw = await readResponse(conn);
-  return parseResponse<T>(raw);
+  const redirectLimit = 5;
+  let redirectCount = 0;
+
+  while (true) {
+    const request = buildRequest(config);
+    const conn = await sendRequest(config.url, request);
+    const raw = await readResponse(conn);
+    const response = parseResponse<T>(raw);
+
+    if (!isRedirect(response)) return response;
+    if (redirectCount >= redirectLimit) throw Error("Too many redirects");
+
+    redirectCount += 1;
+    const redirectUrl = getRedirectUrl(response, config);
+
+    config = { ...config, url: redirectUrl };
+  }
 }
 
 // ==============================
@@ -139,3 +152,19 @@ export default {
   head,
   post,
 };
+
+function isRedirect(response: HttpClientResponse<any>) {
+  return response.status >= 300 && response.status < 400;
+}
+
+function getRedirectUrl(response: HttpClientResponse<any>, config: Config) {
+  const location = response.headers["location"] ?? response.headers["Location"];
+
+  if (location.charAt(0) === "/") {
+    const url = new URL(config.url);
+    url.pathname = location;
+    return url.toString();
+  } else {
+    return new URL(location).toString();
+  }
+}

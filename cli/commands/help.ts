@@ -13,28 +13,30 @@ const general =
   'Use "httpc help [command]" for more information about a command.';
 
 export const getUsage =
-  "usage: httpc get [-v] [-h key:value] URL\n" +
+  "usage: httpc get [-v] [-h key:value] [-o filename] URL\n" +
   "\n" +
   "Get executes a HTTP GET request for a given URL.\n" +
   "   -v             Prints the detail of the response such as protocol, status, and headers.\n" +
-  "   -h key:value   Associates headers to HTTP Request with the format 'key:value'.";
+  "   -h key:value   Associates headers to HTTP Request with the format 'key:value'.\n" +
+  "   -o string      Writes the reponse to an output file.\n";
 
 export const headUsage =
-  "usage: httpc head [-h key:value] URL\n" +
+  "usage: httpc head [-h key:value] [-o filename] URL\n" +
   "\n" +
   "Get executes a HTTP HEAD request for a given URL.\n" +
-  "   -h key:value   Associates headers to HTTP Request with the format 'key:value'.";
+  "   -h key:value   Associates headers to HTTP Request with the format 'key:value'.\n" +
+  "   -o string      Writes the reponse to an output file.\n";
 
 export const postUsage =
-  "usage: httpc post [-v] [-h key:value] [-d inline-data] [-f file] URL\n" +
+  "usage: httpc post [-v] [-h key:value] [-d inline-data] [-f file] [-o filename] URL\n" +
   "\n" +
   "Post executes a HTTP POST request for a given URL with inline data or from file.\n" +
   "   -v             Prints the detail of the response such as protocol, status, and headers.\n" +
   "   -h key:value   Associates headers to HTTP Request with the format 'key:value'.\n" +
   "   -d string      Associates an inline data to the body HTTP POST request.\n" +
   "   -f file        Associates the content of a file to the body HTTP POST request.\n" +
-  "\n" +
-  "Either [-d] or [-f] can be used but not both.";
+  "   -o string      Writes the reponse to an output file.\n";
+"\n" + "Either [-d] or [-f] can be used but not both.";
 
 export function helpCommand(parameters: string[]) {
   const command = parameters[0];

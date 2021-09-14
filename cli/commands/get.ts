@@ -5,6 +5,7 @@ export async function getCommand(parameters: string[]) {
   let verbose = false;
   let headers: Record<string, string> = {};
   let url: string | undefined = undefined;
+  let filename: string | undefined = undefined;
 
   for (let i = 0; i < parameters.length; i++) {
     const parameter = parameters[i];
@@ -19,6 +20,9 @@ export async function getCommand(parameters: string[]) {
         headers = { ...headers, ...header };
         break;
       }
+      case "-o":
+        filename = parameters[++i];
+        break;
       default:
         url = parameter;
     }
@@ -30,6 +34,12 @@ export async function getCommand(parameters: string[]) {
   }
 
   const response = await HttpClient.get(url, { headers });
-  if (verbose) console.log(response.raw);
-  else console.log(response.text);
+  const output = verbose ? response.raw : response.text;
+
+  if (filename) {
+    Deno.writeTextFile(filename, output);
+    return;
+  }
+
+  console.log(output);
 }

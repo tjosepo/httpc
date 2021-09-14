@@ -6,6 +6,7 @@ export async function postCommand(parameters: string[]) {
   let headers: Record<string, string> = {};
   let url: string | undefined = undefined;
   let body: string | undefined = undefined;
+  let filename: string | undefined = undefined;
 
   for (let i = 0; i < parameters.length; i++) {
     const parameter = parameters[i];
@@ -26,6 +27,9 @@ export async function postCommand(parameters: string[]) {
       case "-f":
         body = await Deno.readTextFile(parameters[++i]);
         break;
+      case "-o":
+        filename = parameters[++i];
+        break;
       default:
         url = parameter;
     }
@@ -37,6 +41,11 @@ export async function postCommand(parameters: string[]) {
   }
 
   const response = await HttpClient.post(url, body, { headers });
-  if (verbose) console.log(response.raw);
-  else console.log(response.text);
+  const output = verbose ? response.raw : response.text;
+  if (filename) {
+    Deno.writeTextFile(filename, output);
+    return;
+  }
+
+  console.log(output);
 }
