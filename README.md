@@ -7,7 +7,7 @@ To build httpc:
 1. Clone this repository.
 2. With [Deno](https://deno.land/), build the app by running:
 ```
-$ deno compile --allow-net --allow-read cli/httpc.ts
+$ deno compile --allow-net --allow-read --allow-write cli/httpc.ts
 ```
 
 ## Usage with CLI
