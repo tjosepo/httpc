@@ -9,6 +9,10 @@ To build httpc:
 ```
 $ deno compile --allow-net --allow-read --allow-write cli/httpc.ts
 ```
+or build directly without cloning:
+```
+$ deno compile --allow-net --allow-read --allow-write "https://github.com/tommy-josepovic/httpc/raw/main/cli/httpc.ts"
+```
 
 ## Usage with CLI
 ```
