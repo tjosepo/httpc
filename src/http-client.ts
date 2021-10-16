@@ -15,25 +15,29 @@ function buildRequest(config: Config): string {
   }
 
   let request = "";
-  request += `${method} ${pathname}${search} HTTP/1.0\n`;
+  request += `${method} ${pathname}${search} HTTP/1.0\r\n`;
   if (headers) {
-    request += `${Header.stringify(headers)}\n`;
+    request += `${Header.stringify(headers)}\r\n`;
   }
   request += "\r\n";
   if (body) {
     request += `${body}`;
   }
-  request += "\n";
 
   return request;
 }
 
 async function sendRequest(url: string, request: string) {
-  const { hostname } = new URL(url);
+  let { hostname, port } = new URL(url);
+
+  if (hostname === "0.0.0.0") hostname = "127.0.0.1";
+  if (hostname === "localhost") hostname = "127.0.0.1";
+
+  if (!port) port = "80";
 
   const conn = await Deno.connect({
     hostname,
-    port: 80,
+    port: Number(port),
     transport: "tcp",
   });
 
