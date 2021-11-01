@@ -30,7 +30,7 @@ export async function headCommand(parameters: string[]) {
   }
 
   const response = await HttpClient.head(url, { headers });
-  const output = response.raw;
+  const output = response.verbose();
   if (filename) {
     Deno.writeTextFile(filename, output);
     return;

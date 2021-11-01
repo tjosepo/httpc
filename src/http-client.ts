@@ -1,33 +1,40 @@
+import { indexOf, concat } from "https://deno.land/std@0.111.0/bytes/mod.ts";
 import { Config, HttpClientResponse } from "./types.ts";
 import Header from "./header.ts";
 
-function getContentLength(content: string) {
-  const encoder = new TextEncoder();
-  return encoder.encode(content).length.toString();
-}
+const CRLF = new Uint8Array([13, 10]);
 
-function buildRequest(config: Config): string {
+function buildRequest(config: Config) {
   const { method, url, headers = {}, body } = config;
-  const { pathname, search } = new URL(url);
+  new URL(url); // Validate url
+  const pathname = "/" + url.split("/").slice(3).join("/");
+  const encoder = new TextEncoder();
+  let content: Uint8Array | undefined = undefined;
 
   if (body) {
-    headers["Content-Length"] = getContentLength(body);
+    if (typeof body === "string") content = encoder.encode(body);
+    else content = body;
+
+    headers["Content-Length"] = content.length.toString();
   }
 
   let request = "";
-  request += `${method} ${pathname}${search} HTTP/1.0\r\n`;
+  request += `${method} ${pathname} HTTP/1.0\r\n`;
   if (headers) {
     request += `${Header.stringify(headers)}\r\n`;
   }
   request += "\r\n";
-  if (body) {
-    request += `${body}`;
+
+  let message = encoder.encode(request);
+
+  if (content) {
+    message = concat(message, content);
   }
 
-  return request;
+  return message;
 }
 
-async function sendRequest(url: string, request: string) {
+async function sendRequest(url: string, request: Uint8Array) {
   let { hostname, port } = new URL(url);
 
   if (hostname === "0.0.0.0") hostname = "127.0.0.1";
@@ -41,16 +48,18 @@ async function sendRequest(url: string, request: string) {
     transport: "tcp",
   });
 
-  const encoder = new TextEncoder();
-  const message = encoder.encode(request);
-  await conn.write(message);
+  await conn.write(request);
 
   return conn;
 }
 
-async function readResponse(conn: Deno.Conn) {
+async function readResponse<T>(conn: Deno.Conn) {
   const bufferSize = 32 * 1024;
-  let response = "";
+
+  const response: any = {
+    headers: {},
+  };
+
   let gotEOF = false;
   const decoder = new TextDecoder();
   while (!gotEOF) {
@@ -60,32 +69,55 @@ async function readResponse(conn: Deno.Conn) {
       gotEOF = true;
       continue;
     }
-    response += decoder.decode(bytes.subarray(0, numberOfBytesRead));
+
+    let verbose = "";
+    let lineStart = 0;
+    let reachedCRLF = false;
+    while (!reachedCRLF) {
+      const lineEnd = indexOf(bytes, CRLF, lineStart);
+      const line = decoder.decode(bytes.subarray(lineStart, lineEnd));
+      verbose += line + "\r\n";
+
+      if (lineStart === 0) {
+        // Request Line
+        const [_, status, statusText] = line.split(" ");
+        response.status = Number(status);
+        response.statusText = statusText;
+      } else if (line) {
+        // Header Line
+        const [key, value] = Header.parseLine(line);
+        response.headers[key] = value;
+      } else {
+        reachedCRLF = true;
+      }
+
+      lineStart = lineEnd + 2;
+    }
+
+    // Read Content
+    const contentLength = Number(response.headers["content-length"]);
+    let remainingBytes = contentLength;
+
+    const chunk = bytes.subarray(lineStart, numberOfBytesRead);
+    remainingBytes -= chunk.length;
+    let content = chunk;
+
+    while (remainingBytes > 0) {
+      const numberOfBytesRead = await conn.read(bytes);
+      if (numberOfBytesRead === null) break;
+      content = concat(content, bytes.subarray(0, numberOfBytesRead));
+      remainingBytes -= numberOfBytesRead;
+    }
+
+    response.content = content;
+    response.text = () => new TextDecoder().decode(content);
+    response.verbose = () => verbose + response.text();
+    response.json = () => JSON.parse(response.text());
+
+    break;
   }
 
-  return response;
-}
-
-function parseResponse<T>(response: string): HttpClientResponse<T> {
-  const [statusLine, ...headersAndBody] = response.split("\r\n");
-  const [_, status, statusText] = statusLine.split(" ");
-
-  const [rawHeaders, body] = headersAndBody.join("\r\n").split("\r\n\r\n");
-  const headers = Header.parse(rawHeaders);
-
-  let data = {};
-  if (headers["Content-Type"] === "application/json" && body) {
-    data = JSON.parse(body);
-  }
-
-  return {
-    data: data as T,
-    text: body,
-    raw: response,
-    status: Number(status),
-    statusText,
-    headers,
-  };
+  return response as HttpClientResponse<T>;
 }
 
 async function fetch<T>(config: Config) {
@@ -95,8 +127,7 @@ async function fetch<T>(config: Config) {
   while (true) {
     const request = buildRequest(config);
     const conn = await sendRequest(config.url, request);
-    const raw = await readResponse(conn);
-    const response = parseResponse<T>(raw);
+    const response = await readResponse<T>(conn);
 
     if (!isRedirect(response)) return response;
     if (redirectCount >= redirectLimit) throw Error("Too many redirects");
@@ -127,7 +158,7 @@ function get<T = any>(url: string, options?: Options) {
 }
 
 function post<T = any>(url: string, body?: any, options?: Options) {
-  if (body && typeof body === "object") {
+  if (body && typeof body === "object" && body.constructor !== Uint8Array) {
     body = JSON.stringify(body);
   }
 

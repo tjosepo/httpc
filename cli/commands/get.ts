@@ -34,10 +34,10 @@ export async function getCommand(parameters: string[]) {
   }
 
   const response = await HttpClient.get(url, { headers });
-  const output = verbose ? response.raw : response.text;
+  const output = verbose ? response.verbose() : response.text();
 
   if (filename) {
-    Deno.writeTextFile(filename, output);
+    Deno.writeFile(filename, response.content);
     return;
   }
 

@@ -2,11 +2,12 @@
  * Converts a HTTP header string into an object.
  * @param text A valid HTTP header.
  */
-function parse(text: string): Record<string, string> {
+function parse(text: string) {
   const headers: Record<string, string> = {};
 
   const lines = text.split("\r\n");
   for (const line of lines) {
+    if (!line) continue;
     const [name, ...value] = line.split(":");
     headers[name.trim()] = value.join(":").trimStart();
   }
@@ -15,13 +16,31 @@ function parse(text: string): Record<string, string> {
 }
 
 /**
+ * Converts a HTTP header string into an object.
+ * @param text A valid HTTP header.
+ */
+function parseLine(text: string) {
+  const [name, ...value] = text.trim().split(":");
+  return [name.trim().toLowerCase(), value.join(":").trimStart()];
+}
+
+/**
  * Converts a JavaScript object to a HTTP header string.
  * @param text A JavaScript object.
  */
-function stringify(headers: Record<string, string>): string {
+function stringify(headers: Headers | Record<string, string>): string {
   const lines = [];
-  for (const fieldName in headers) {
-    const header = `${fieldName}: ${headers[fieldName]}`;
+  let entries: Iterable<[string, string]>;
+
+  if (headers.constructor === Headers) {
+    entries = headers.entries();
+  } else {
+    entries = Object.entries(headers);
+  }
+
+  for (const entry of entries) {
+    const [fieldName, value] = entry;
+    const header = `${fieldName}: ${value}`;
     lines.push(header);
   }
 
@@ -30,5 +49,6 @@ function stringify(headers: Record<string, string>): string {
 
 export default {
   parse,
+  parseLine,
   stringify,
 };
